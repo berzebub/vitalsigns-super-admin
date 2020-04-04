@@ -6,10 +6,16 @@ const routes = [{
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [{
-      path: 'hospital',
-      component: () => import('pages/hospital.vue'),
-      name: 'hospital'
-    }]
+        path: 'hospital',
+        component: () => import('pages/hospital.vue'),
+        name: 'hospital'
+      },
+      {
+        path: 'preference',
+        component: () => import('pages/preference.vue'),
+        name: 'preference'
+      }
+    ]
   }
 ]
 

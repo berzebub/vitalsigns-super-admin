@@ -26,17 +26,17 @@
             </q-item-section>
           </q-item>
 
-          <q-item class="color-white q-py-sm" clickable v-ripple>
+          <q-item class="color-white q-py-sm" clickable v-ripple to="/preference">
             <q-item-section>
               <div align="center">
                 <q-icon
                   size="33px"
                   name="settings"
-                  :color="$route.name == 'settings' ? 'white' : 'grey'"
+                  :color="$route.name == 'preference' ? 'white' : 'grey'"
                 />
                 <div
                   class="q-pb-sm"
-                  :class="$route.name == 'settings' ? 'text-white' : 'text-grey'"
+                  :class="$route.name == 'preference' ? 'text-white' : 'text-grey'"
                 >เพิ่มเติม</div>
               </div>
             </q-item-section>

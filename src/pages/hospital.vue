@@ -16,7 +16,7 @@
           <q-btn
             dense
             label="+ เพิ่มโรงพยาบาล"
-            @click="isShowAddHospital = true"
+            @click="isShowAddHospital = true,isEditHospital = false"
             class="q-mx-sm"
             flat
           ></q-btn>
@@ -60,11 +60,10 @@
             :key="index"
             @click="showHospitalData(index)"
           >
-            <div class="q-px-md col">{{ items.name }}</div>
+            <div class="q-pa-sm col">{{ items.name }}</div>
             <div class="col-1 self-center" style="width:30px;">
               <q-icon name="chevron_right" size="24px"></q-icon>
             </div>
-            <div class="col-12 q-px-md color-light-gray">{{ items.domainPrefix }}</div>
             <div class="col-12">
               <q-separator />
             </div>
@@ -82,17 +81,28 @@
       </div>
 
       <div v-else class="col container-list">
+        <div align="right" class="q-pa-md">
+          <q-btn
+            @click="editHospital()"
+            class="text-orange-5"
+            icon="fas fa-edit"
+            flat
+            label="แก้ไข"
+          ></q-btn>
+          <q-btn
+            @click="deleteHospital()"
+            class="text-red"
+            icon="fas fa-trash"
+            flat
+            label="ลบโรงพยาบาล"
+          ></q-btn>
+        </div>
         <div style="max-width:360px;width:95%;margin:auto" class="q-pa-lg">
-          <div align="center" class="font-h3">{{ currentHospitalData.name }}</div>
-          <div align="left" class="font-body">
-            <span class="color-light-gray">Domain</span>
-            <span class="q-pl-sm">{{ currentHospitalData.domainPrefix }}</span>
-          </div>
+          <div align="center" class="font-h3 relative-position">{{ currentHospitalData.name }}</div>
           <div align="left" class="font-body">
             <span class="color-light-gray">Date Created</span>
-            <span class="q-pl-sm">{{ currentHospitalData.dateCreated.date }}</span>
+            <span class="q-pl-sm">{{ currentHospitalData.dateCreated }}</span>
           </div>
-
           <div
             class="row q-mt-lg"
             v-for="(items,index) in userData.filter(
@@ -115,7 +125,7 @@
               </div>
               <div class="row q-px-md">
                 <div class="col">Name</div>
-                <div class="col">{{ items.displayName }}</div>
+                <div class="col">{{ items.name }} {{ items.surname }}</div>
               </div>
               <div class="row q-px-md">
                 <div class="col">Email</div>
@@ -137,22 +147,13 @@
           <q-btn v-close-popup icon="fas fa-times" flat></q-btn>
         </div>
         <q-card-section style="max-width:360px;width:95%;margin:auto">
-          <div align="center" class="font-h3">เพิ่มโรงพยาบาล</div>
+          <div align="center" class="font-h3">
+            <span v-if="isEditHospital">แก้ไขโรงพยาบาล</span>
+            <span v-else>เพิ่มโรงพยาบาล</span>
+          </div>
           <div class="font-h4 q-pt-md">
             ชื่อโรงพยาบาล
             <q-input v-model="hospitalName" label="ชื่อโรงพยาบาล" class="q-pt-sm" outlined></q-input>
-          </div>
-
-          <div class="font-h4 q-pt-md">
-            Domain
-            <div class="row">
-              <div class="col-6">
-                <q-input label="domain" v-model="domainPrefix" class="q-pt-sm" outlined></q-input>
-              </div>
-              <div class="col self-end">
-                <div class="q-pl-sm">.vitalsignapp.com</div>
-              </div>
-            </div>
           </div>
         </q-card-section>
         <q-card-actions align="center" class="q-pt-lg">
@@ -196,17 +197,31 @@
             <span class="q-px-sm"></span>
             Password
             <q-input
-              :readonly="isEditMode"
+              input-style="letter-spacing:2px;caret-color:#009688;"
+              class="rounded-borders q-px-sm"
               v-model="adminObj.password"
-              label="Password"
-              class="q-pt-sm q-px-sm"
+              @keyup.enter="signIn()"
               outlined
-            ></q-input>
+              :type="isPwd ? 'password' : 'text'"
+              :label="'รหัสผ่าน'"
+            >
+              <template v-slot:append>
+                <q-icon
+                  :name="isPwd ? 'visibility_off' : 'visibility'"
+                  class="cursor-pointer"
+                  @click="isPwd = !isPwd"
+                />
+              </template>
+            </q-input>
           </div>
         </q-card-section>
 
         <q-card-actions align="center" class="q-pt-lg">
           <q-btn label="บันทึก" @click="addAdmin()" class="button-action"></q-btn>
+        </q-card-actions>
+
+        <q-card-actions align="center" v-show="isEditMode">
+          <q-btn @click="deleteAdminAccount()" flat class="text-red">ลบบัญชี Hospital Admin</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -218,10 +233,11 @@ import { db, auth } from "../router";
 export default {
   data() {
     return {
+      isEditHospital: true,
+      isPwd: true,
       isShowAddUser: false,
       isShowAddHospital: false,
       hospitalName: "",
-      domainPrefix: "",
       hospitalData: "",
       currentHospitalData: "",
       isClickedOnHospital: false,
@@ -240,65 +256,164 @@ export default {
     };
   },
   methods: {
+    editHospital() {
+      this.isShowAddHospital = true;
+      this.isEditHospital = true;
+    },
+    deleteHospital() {
+      this.$q
+        .dialog({
+          title: "แจ้งเตือน",
+          message:
+            "คุณต้องการลบโรงพยาบาลนี้หรือไม่ ข้อมูลที่เกียวข้องกับโรงพยาบาลนี้ทั้งหมดจะถูกลบ",
+          cancel: { textColor: "black", flat: true },
+          ok: { color: "orange-5" }
+        })
+        .onOk(() => {
+          this.$q
+            .dialog({
+              title: "ยืนยันการลบ",
+              message: "ข้อมูลที่เกียวข้องกับโรงพยาบาลนี้ทั้งหมดจะถูกลบ",
+              cancel: { textColor: "black", flat: true },
+              ok: { color: "orange-5" }
+            })
+            .onOk(() => {
+              this.$q.loading.show({ delay: 400 });
+
+              db.collection("patientData")
+                .where("hospitalKey", "==", this.currentHospitalData.key)
+                .get()
+                .then(doc => {
+                  doc.forEach(element => {
+                    db.collection("patientData")
+                      .doc(element.id)
+                      .delete();
+                  });
+                });
+
+              db.collection("patientLog")
+                .where("hospitalKey", "==", this.currentHospitalData.key)
+                .get()
+                .then(doc => {
+                  doc.forEach(element => {
+                    db.collection("patientLog")
+                      .doc(element.id)
+                      .delete();
+                  });
+                });
+
+              db.collection("userData")
+                .where("hospitalKey", "==", this.currentHospitalData.key)
+                .get()
+                .then(doc => {
+                  doc.forEach(element => {
+                    db.collection("userData")
+                      .doc(element.id)
+                      .delete();
+                  });
+                });
+
+              db.collection("patientRoom")
+                .where("hospitalKey", "==", this.currentHospitalData.key)
+                .get()
+                .then(doc => {
+                  doc.forEach(element => {
+                    db.collection("patientRoom")
+                      .doc(element.id)
+                      .delete();
+                  });
+                });
+
+              db.collection("hospital")
+                .doc(this.currentHospitalData.key)
+                .delete()
+                .then(doc => {
+                  this.$q.loading.hide();
+                });
+            });
+        });
+    },
+    deleteAdminAccount() {
+      this.$q
+        .dialog({
+          title: "แจ้งเตือน",
+          message: "คุณต้องการลบบัญชีนี้หรือไม่",
+          cancel: { textColor: "black", flat: true },
+          ok: { color: "orange-5" }
+        })
+        .onOk(() => {
+          db.collection("userData")
+            .doc(this.adminObj.key)
+            .delete()
+            .then(() => {
+              this.isShowAddUser = false;
+              this.$q.loading.hide();
+            });
+        });
+    },
     editAdmin(items) {
-      console.log(items);
       this.adminObj = items;
       this.isShowAddUser = true;
       this.isEditMode = true;
     },
-    addAdmin() {
-      let _this = this;
-      this.$q.loading.show({
-        delay: 400
-      });
-      auth
-        .createUserWithEmailAndPassword(
-          _this.adminObj.email,
-          _this.adminObj.password
-        )
-        .then(() => {
-          let user = auth.currentUser;
-          user
-            .updateProfile({
-              displayName: this.adminObj.name + " " + this.adminObj.password
-            })
-            .then(() => {
-              let userData = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                name: this.adminObj.name,
-                surname: this.adminObj.surname,
-                password: this.adminObj.password,
-                hospitalKey: this.currentHospitalData.key
-              };
+    async addAdmin() {
+      let date = await this.getDate();
+      this.$q.loading.show({ delay: 400 });
+      if (this.isEditMode) {
+        db.collection("userData")
+          .doc(this.adminObj.key)
+          .update(this.adminObj)
+          .then(() => {
+            this.$q.loading.hide();
+            this.$q.notify({
+              message: "แก้ไขข้อมูลสำเร็จ",
+              classes: "bg-teal"
+            });
+            this.isEditMode = false;
+            this.isShowAddUser = false;
+          });
+      } else {
+        db.collection("userData")
+          .where("email", "==", this.adminObj.email)
+          .get()
+          .then(doc => {
+            if (doc.size) {
+              this.$q.loading.hide();
+              this.$q.notify({
+                message: "พบ Email นี้อยู่แล้วในระบบ",
+                classes: "bg-red"
+              });
+            } else {
               db.collection("userData")
-                .add(userData)
+                .add({
+                  isAdmin: true,
+                  email: this.adminObj.email,
+                  password: this.adminObj.password,
+                  hospitalKey: this.currentHospitalData.key,
+                  name: this.adminObj.name,
+                  surname: this.adminObj.surname,
+                  dateCreated: date.date,
+                  microtimeCreated: date.microtime
+                })
                 .then(() => {
-                  _this.$q.loading.hide();
-                  _this.$q.notify({
-                    message: "สร้างบุคลากรเรียบร้อย",
-                    classes: "notifyBg"
+                  this.$q.notify({
+                    message: "เพิ่ม Admin สำเร็จ",
+                    classes: "bg-teal"
                   });
-                  _this.isShowAddUser = false;
-                  _this.adminObj = {
+                  this.adminObj = {
                     name: "",
                     surname: "",
                     email: "",
                     password: "",
-                    hospitalKey: "",
-                    dateCreated: "",
-                    uid: ""
+                    hospitalKey: this.currentHospitalData.key,
+                    dateCreated: date.date
                   };
+                  this.isShowAddUser = false;
+                  this.$q.loading.hide();
                 });
-            });
-        })
-        .catch(function(error) {
-          var errorCode = error.code;
-          var errorMessage = error.message;
-          _this.$q.loading.hide();
-          alert(errorMessage);
-        });
+            }
+          });
+      }
     },
     showHospitalData(index) {
       this.isClickedOnHospital = true;
@@ -307,17 +422,67 @@ export default {
     async addHospital() {
       this.$q.loading.show({ delay: 400 });
       let date = await this.getDate();
-      db.collection("hospital")
-        .add({
-          name: this.hospitalName,
-          domainPrefix: this.domainPrefix,
-          dateCreated: date,
-          microtimeCreated: date.microtime
-        })
-        .then(() => {
-          this.isShowAddHospital = false;
-          this.$q.loading.hide();
-        });
+
+      if (this.isEditHospital) {
+        db.collection("hospital")
+          .doc(this.currentHospitalData.key)
+          .update({
+            name: this.hospitalName
+          })
+          .then(() => {
+            this.isEditHospital = false;
+            this.isShowAddHospital = false;
+            this.$q.loading.hide();
+            this.currentHospitalData.name = this.hospitalName;
+          });
+      } else {
+        db.collection("hospital")
+          .where("name", "==", this.hospitalName)
+          .get()
+          .then(doc => {
+            if (doc.size) {
+              // แจ้งเตือนชื่อโรงพยาบาลซ้ำ
+              this.$q.notify({
+                message: "ชื่อโรงพยาบาลซ้ำ",
+                classes: "bg-red"
+              });
+              this.$q.loading.hide();
+            } else {
+              db.collection("hospital")
+                .add({
+                  name: this.hospitalName,
+                  dateCreated: date.date,
+                  microtimeCreated: date.microtime,
+                  vitalSignsConfig: [
+                    {
+                      status: true,
+                      sym: "อุณหภูมิร่างกาย"
+                    },
+                    {
+                      sym: "ค่าออกซิเจนในเลือด",
+                      status: false
+                    },
+                    {
+                      sym: "ค่าความดันเลือด",
+                      status: false
+                    },
+                    {
+                      sym: "อัตราการเต้นของหัวใจ",
+                      status: false
+                    },
+                    {
+                      sym: "อาการตอนนี้",
+                      status: false
+                    }
+                  ]
+                })
+                .then(() => {
+                  this.isShowAddHospital = false;
+                  this.$q.loading.hide();
+                });
+            }
+          });
+      }
     },
     loadHospital() {
       this.$q.loading.show({ delay: 400 });
@@ -325,6 +490,9 @@ export default {
         let dataTemp = [];
         doc.forEach(element => {
           dataTemp.push({ ...element.data(), ...{ key: element.id } });
+        });
+        dataTemp.sort((a, b) => {
+          return a.microtimeCreated - b.microtimeCreated;
         });
         this.hospitalData = dataTemp;
         this.$q.loading.hide();
@@ -337,13 +505,15 @@ export default {
         doc.forEach(element => {
           dataTemp.push({ ...element.data(), ...{ key: element.id } });
         });
+        dataTemp = dataTemp.sort((a, b) => {
+          return a.microtimeCreated - b.microtimeCreated;
+        });
         this.userData = dataTemp;
       });
     }
   },
   mounted() {
     this.loadHospital();
-    console.log(auth.currentUser.email);
   }
 };
 </script>

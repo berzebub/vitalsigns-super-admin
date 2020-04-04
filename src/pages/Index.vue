@@ -72,45 +72,23 @@ export default {
     login() {
       let _this = this;
       this.$q.loading.show({ delay: 400 });
-      auth
-        .signInWithEmailAndPassword(this.email, this.password)
-        .then(() => {
-          auth.onAuthStateChanged(user => {
+      db.collection("userData")
+        .where("email", "==", this.email)
+        .where("password", "==", this.password)
+        .where("isSuperAdmin", "==", true)
+        .get()
+        .then(doc => {
+          if (doc.size) {
+            this.$router.push("/hospital");
+          } else {
             this.$q.loading.hide();
-            if (user) {
-              db.collection("userData")
-                .where("uid", "==", user.uid)
-                .get()
-                .then(doc => {
-                  if (doc.docs[0].data().isSuperAdmin) {
-                    // NOTE ROUTE TO MAIN PAGE
-                    this.$router.push("/hospital");
-                  } else {
-                    this.$q.dialog({
-                      title: "แจ้งเตือน",
-                      message: "คุณไม่มีสิทธิ์ระดับ Super Admin",
-                      ok: {
-                        color: "orange-5"
-                      }
-                    });
-                  }
-                });
-            }
-          });
-        })
-        .catch(error => {
-          var errorCode = error.code;
-          var errorMessage = error.message;
-          if (error) {
             this.$q.dialog({
               title: "ผิดพลาด",
-              message: "ไม่พบข้อมูลผู้ใช้งานนี้ในระบบ",
+              message: "ไม่พบรหัสผู้ใช้งานนี้ในระบบ",
               ok: {
                 color: "orange-5"
               }
             });
-
-            _this.$q.loading.hide();
           }
         });
     }
