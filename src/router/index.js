@@ -33,6 +33,11 @@ export const db = firebase.firestore();
 export const auth = firebase.auth();
 
 Vue.mixin({
+  data() {
+    return {
+      version: "1.0.001"
+    }
+  },
   methods: {
     async getDate() {
       let apiLink = "https://api.winner-english.com/data/api/gettime.php";

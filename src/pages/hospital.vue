@@ -103,6 +103,10 @@
             <span class="color-light-gray">Date Created</span>
             <span class="q-pl-sm">{{ currentHospitalData.dateCreated }}</span>
           </div>
+          <div align="left" class="font-body">
+            <span class="color-light-gray">Domain name</span>
+            <span class="q-pl-sm">{{ currentHospitalData.domainPrefix }}.vitalsignapp.com</span>
+          </div>
           <div
             class="row q-mt-lg"
             v-for="(items,index) in userData.filter(
@@ -154,6 +158,17 @@
           <div class="font-h4 q-pt-md">
             ชื่อโรงพยาบาล
             <q-input v-model="hospitalName" label="ชื่อโรงพยาบาล" class="q-pt-sm" outlined></q-input>
+          </div>
+          <div class="font-h4 q-pt-md">
+            <div class="row">
+              <div class="col-12">Domain</div>
+              <div class="col-6">
+                <q-input v-model="domainPrefix" label="Domain name" class="q-pt-sm" outlined></q-input>
+              </div>
+              <div class="col-6 self-end">
+                <span class="q-pl-xs relative-position" style="bottom:7px">.vitalsignapp.com</span>
+              </div>
+            </div>
           </div>
         </q-card-section>
         <q-card-actions align="center" class="q-pt-lg">
@@ -233,6 +248,7 @@ import { db, auth } from "../router";
 export default {
   data() {
     return {
+      domainPrefix: "",
       isEditHospital: true,
       isPwd: true,
       isShowAddUser: false,
@@ -252,12 +268,15 @@ export default {
       },
       userData: "",
       showUserData: "",
-      isEditMode: false
+      isEditMode: false,
+      platform: this.$q.platform.is
     };
   },
   methods: {
     editHospital() {
       this.isShowAddHospital = true;
+      this.domainPrefix = this.currentHospitalData.domainPrefix;
+      this.hospitalName = this.currentHospitalData.name;
       this.isEditHospital = true;
     },
     deleteHospital() {
@@ -415,9 +434,25 @@ export default {
           });
       }
     },
+    checkVersion() {
+      db.collection("version")
+        .doc("vitalsign-super-admin")
+        .get()
+        .then(doc => {
+          if (this.version != doc.data().version) {
+            window.location.reload(true);
+          }
+        });
+    },
     showHospitalData(index) {
-      this.isClickedOnHospital = true;
-      this.currentHospitalData = this.hospitalData[index];
+      if (this.platform.desktop) {
+        console.log("DESKTOP");
+        this.isClickedOnHospital = true;
+        this.currentHospitalData = this.hospitalData[index];
+      } else {
+        console.log("MOBILE");
+        this.$router.push("/mhospital/" + this.hospitalData[index].key);
+      }
     },
     async addHospital() {
       this.$q.loading.show({ delay: 400 });
@@ -427,15 +462,30 @@ export default {
         db.collection("hospital")
           .doc(this.currentHospitalData.key)
           .update({
-            name: this.hospitalName
+            name: this.hospitalName,
+            domainPrefix: this.domainPrefix
           })
-          .then(() => {
+          .then(doc => {
             this.isEditHospital = false;
             this.isShowAddHospital = false;
             this.$q.loading.hide();
             this.currentHospitalData.name = this.hospitalName;
           });
       } else {
+        let checkDomainExists = await db
+          .collection("hospital")
+          .where("domainPrefix", "==", this.domainPrefix)
+          .get();
+
+        if (checkDomainExists.size) {
+          this.$q.notify({
+            message: "Domain ซ้ำ",
+            classes: "bg-red"
+          });
+          this.$q.loading.hide();
+          return;
+        }
+
         db.collection("hospital")
           .where("name", "==", this.hospitalName)
           .get()
@@ -450,6 +500,7 @@ export default {
             } else {
               db.collection("hospital")
                 .add({
+                  domainPrefix: this.domainPrefix,
                   name: this.hospitalName,
                   dateCreated: date.date,
                   microtimeCreated: date.microtime,
@@ -476,9 +527,18 @@ export default {
                     }
                   ]
                 })
-                .then(() => {
-                  this.isShowAddHospital = false;
-                  this.$q.loading.hide();
+                .then(hDoc => {
+                  db.collection("patientRoom")
+                    .add({
+                      addTime: date.microtime,
+                      date: date,
+                      hospitalKey: hDoc.id,
+                      name: "ห้องตัวอย่าง"
+                    })
+                    .then(() => {
+                      this.isShowAddHospital = false;
+                      this.$q.loading.hide();
+                    });
                 });
             }
           });
@@ -500,19 +560,22 @@ export default {
       });
     },
     loadUserData() {
-      db.collection("userData").onSnapshot(doc => {
-        let dataTemp = [];
-        doc.forEach(element => {
-          dataTemp.push({ ...element.data(), ...{ key: element.id } });
+      db.collection("userData")
+        .where("isAdmin", "==", true)
+        .onSnapshot(doc => {
+          let dataTemp = [];
+          doc.forEach(element => {
+            dataTemp.push({ ...element.data(), ...{ key: element.id } });
+          });
+          dataTemp = dataTemp.sort((a, b) => {
+            return a.microtimeCreated - b.microtimeCreated;
+          });
+          this.userData = dataTemp;
         });
-        dataTemp = dataTemp.sort((a, b) => {
-          return a.microtimeCreated - b.microtimeCreated;
-        });
-        this.userData = dataTemp;
-      });
     }
   },
   mounted() {
+    this.checkVersion();
     this.loadHospital();
   }
 };

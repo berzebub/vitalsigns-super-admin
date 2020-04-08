@@ -14,6 +14,10 @@ const routes = [{
         path: 'preference',
         component: () => import('pages/preference.vue'),
         name: 'preference'
+      }, {
+        path: 'mhospital/:hospitalKey',
+        component: () => import('pages/mhospital.vue'),
+        name: 'mhospital'
       }
     ]
   }

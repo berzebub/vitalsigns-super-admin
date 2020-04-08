@@ -35,7 +35,7 @@
             input-style="letter-spacing:2px;caret-color:#009688;"
             class="rounded-borders"
             v-model="password"
-            @keyup.enter="signIn()"
+            @keyup.enter="login()"
             outlined
             :type="isPwd ? 'password' : 'text'"
             :label="'รหัสผ่าน'"
@@ -55,6 +55,8 @@
         <q-btn @click="login()" class="button-action" dense label="เข้าสู่ระบบ"></q-btn>
       </div>
     </div>
+
+    <div class="absolute-bottom-right q-pa-md font-body">V+{{ version }}</div>
   </div>
 </template>
 
