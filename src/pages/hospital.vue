@@ -446,11 +446,9 @@ export default {
     },
     showHospitalData(index) {
       if (this.platform.desktop) {
-        console.log("DESKTOP");
         this.isClickedOnHospital = true;
         this.currentHospitalData = this.hospitalData[index];
       } else {
-        console.log("MOBILE");
         this.$router.push("/mhospital/" + this.hospitalData[index].key);
       }
     },

@@ -1,6 +1,6 @@
 {
   "hosting": [{
-    "target": "vitalsign-super-admin",
+    "target": "vitalsigns-super-admin",
     "public": "dist/pwa",
     "ignore": [
       "firebase.json",
